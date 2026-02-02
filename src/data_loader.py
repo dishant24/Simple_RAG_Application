@@ -1,16 +1,62 @@
 from pathlib import Path
 from typing import List, Any
+import tempfile
+import os
 from langchain_community.document_loaders import PyPDFLoader, TextLoader, CSVLoader
 from langchain_community.document_loaders import Docx2txtLoader
 from langchain_community.document_loaders.excel import UnstructuredExcelLoader
 from langchain_community.document_loaders import JSONLoader
+
+
+def load_uploaded_files(uploaded_files) -> List[Any]:
+    """
+    Load documents from Streamlit uploaded files.
+    Returns list of LangChain documents.
+    """
+    documents = []
+    
+    for uploaded_file in uploaded_files:
+        file_extension = uploaded_file.name.split('.')[-1].lower()
+        
+        with tempfile.NamedTemporaryFile(delete=False, suffix=f'.{file_extension}') as tmp_file:
+            tmp_file.write(uploaded_file.getvalue())
+            tmp_path = tmp_file.name
+        
+        try:
+            if file_extension == 'pdf':
+                loader = PyPDFLoader(tmp_path)
+            elif file_extension == 'txt':
+                loader = TextLoader(tmp_path)
+            elif file_extension == 'csv':
+                loader = CSVLoader(tmp_path)
+            elif file_extension in ['xlsx', 'xls']:
+                loader = UnstructuredExcelLoader(tmp_path)
+            elif file_extension == 'docx':
+                loader = Docx2txtLoader(tmp_path)
+            elif file_extension == 'json':
+                loader = JSONLoader(str(json_file))
+            else:
+                print(f"[WARNING] Unsupported file type: {file_extension}")
+                continue
+            
+            loaded = loader.load()
+            documents.extend(loaded)
+            print(f"[INFO] Loaded {len(loaded)} documents from {uploaded_file.name}")
+            
+        except Exception as e:
+            print(f"[ERROR] Failed to load {uploaded_file.name}: {e}")
+        finally:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+    
+    return documents
+
 
 def load_all_documents(data_dir: str) -> List[Any]:
     """
     Load all supported files from the data directory and convert to LangChain document structure.
     Supported: PDF, TXT, CSV, Excel, Word, JSON
     """
-    # Use project root data folder
     data_path = Path(data_dir).resolve()
     print(f"[DEBUG] Data path: {data_path}")
     documents = []
@@ -96,7 +142,7 @@ def load_all_documents(data_dir: str) -> List[Any]:
     print(f"[DEBUG] Total loaded documents: {len(documents)}")
     return documents
 
-# Example usage
+
 if __name__ == "__main__":
     docs = load_all_documents("data")
     print(f"Loaded {len(docs)} documents.")

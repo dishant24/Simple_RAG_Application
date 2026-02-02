@@ -1,8 +1,9 @@
 from typing import List, Any
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from sentence_transformers import SentenceTransformer
 import numpy as np
 from src.data_loader import load_all_documents
+
 
 class EmbeddingPipeline:
     def __init__(self, model_name: str = "all-MiniLM-L6-v2", chunk_size: int = 1000, chunk_overlap: int = 200):
@@ -12,6 +13,7 @@ class EmbeddingPipeline:
         print(f"[INFO] Loaded embedding model: {model_name}")
 
     def chunk_documents(self, documents: List[Any]) -> List[Any]:
+        """Split documents into chunks with progress tracking"""
         splitter = RecursiveCharacterTextSplitter(
             chunk_size=self.chunk_size,
             chunk_overlap=self.chunk_overlap,
@@ -22,16 +24,20 @@ class EmbeddingPipeline:
         print(f"[INFO] Split {len(documents)} documents into {len(chunks)} chunks.")
         return chunks
 
-    def embed_chunks(self, chunks: List[Any]) -> np.ndarray:
+    def embed_chunks(self, chunks: List[Any], show_progress: bool = True) -> np.ndarray:
+        """Generate embeddings for chunks with progress bar"""
         texts = [chunk.page_content for chunk in chunks]
         print(f"[INFO] Generating embeddings for {len(texts)} chunks...")
-        embeddings = self.model.encode(texts, show_progress_bar=True)
+        embeddings = self.model.encode(
+            texts, 
+            show_progress_bar=show_progress,
+            batch_size=32  # Process in batches for better progress tracking
+        )
         print(f"[INFO] Embeddings shape: {embeddings.shape}")
         return embeddings
 
 # Example usage
 if __name__ == "__main__":
-    
     docs = load_all_documents("data")
     emb_pipe = EmbeddingPipeline()
     chunks = emb_pipe.chunk_documents(docs)
